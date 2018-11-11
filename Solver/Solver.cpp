@@ -31,7 +31,7 @@ int Solver::Cli::run(int argc, char * argv[]) {
         { EnvironmentPathOption(), nullptr },
         { ConfigPathOption(), nullptr },
         { LogPathOption(), nullptr }
-    });
+        });
 
     for (int i = 1; i < argc; ++i) { // skip executable name.
         auto mapIter = optionMap.find(argv[i]);
@@ -295,34 +295,253 @@ void Solver::init() {
     fill(aux.coverRadii.begin(), aux.coverRadii.end(), Problem::MaxDistance);
 }
 
+
+
+
+bool Solver::init_solution(Solution &sln,ID nodeNum) {//贪心构造
+    srand(rand() % MAX);
+    int mindictance = MAX;
+    vector <int>flag(nodeNum, 0);
+
+    Solution_path.push_back(0);
+    flag[Solution_path[0]] = 1;//flag[i]== 1:node i in the Solution_path,visited
+    int tempnode1 = Solution_path[0];
+    int tempnode2;
+    for (int j = 1; j != nodeNum; j++) {
+        mindictance = MAX;
+        tempnode1 = Solution_path[j - 1];
+        for (int i = 1; i != nodeNum; i++) {
+            if (aux.adjMat[tempnode1][i] < mindictance && flag[i] == 0) {
+                mindictance = aux.adjMat[tempnode1][i];
+                tempnode2 = i;
+            } else if (aux.adjMat[tempnode1][i] == mindictance && rand() % 2 == 0 && flag[i] == 0) {
+                mindictance = aux.adjMat[tempnode1][i];
+                tempnode2 = i;
+            }
+        }
+        Solution_path.push_back(tempnode2);
+        inpath[Solution_path[j - 1]][Solution_path[j]] = inpath[Solution_path[j]][Solution_path[j - 1]] = 1;
+        flag[tempnode2] = 1;
+        local_solution += mindictance;
+    }
+    Solution_path.push_back(0);
+    local_solution += aux.adjMat[Solution_path[Solution_path.size() - 2]][0];
+    inpath[Solution_path[Solution_path.size() - 2]][Solution_path[Solution_path.size() - 1]] = inpath[Solution_path[Solution_path.size() - 1]][Solution_path[Solution_path.size() - 2]] = 1;
+    return 1;
+}
+
 bool Solver::optimize(Solution &sln, ID workerId) {
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " starts." << endl;
-
     ID nodeNum = input.graph().nodenum();
     ID centerNum = input.centernum();
-
-    // reset solution state.
+    int pc=0;
+    inpath = vector<vector<int>>(nodeNum, vector<int>(nodeNum, 0));//标记路径中相连的两边，方便找到比相连的交换边
     bool status = true;
-    auto &centers(*sln.mutable_centers());
-    centers.Resize(centerNum, Problem::InvalidId);
-
-    // TODO[0]: replace the following random assignment with your own algorithm.
-    Sampling sampler(rand, centerNum);
-    for (ID n = 0; !timer.isTimeOut() && (n < nodeNum); ++n) {
-        ID center = sampler.replaceIndex();
-        if (center >= 0) { centers[center] = n; }
+    TabuTenure = vector<vector<int>>(nodeNum, vector<int>(nodeNum, 0));
+    pair Pair = { -1 };
+    bool tempflag = init_solution(sln,nodeNum);//初始解
+    best_solution = local_solution;
+    if (tempflag == 0) {
+        cout << "error!!";
+        return 0;
     }
-
-    sln.coverRadius = 0; // record obj.
-    for (ID n = 0; n < nodeNum; ++n) {
-        for (auto c = centers.begin(); c != centers.end(); ++c) {
-            if (aux.adjMat.at(n, *c) < aux.coverRadii[n]) { aux.coverRadii[n] = aux.adjMat.at(n, *c); }
+    cout << "init_best_solution" << best_solution << endl;
+    /*for (int i = 0; i != nodeNum + 1; i++)
+        cout << Solution_path[i] << "\t";
+    cout << endl << endl;*/
+    /*for (int i = 0; i != nodeNum; i++) {
+        for (int j = 0; j != nodeNum; j++) {
+            cout << aux.adjMat[i][j] << "\t";
         }
-        if (sln.coverRadius < aux.coverRadii[n]) { sln.coverRadius = aux.coverRadii[n]; }
-    }
+        cout << endl;
+    }*/
+    clock_t start_time = clock();
+    iter = 1;
+    while (iter < MAX&& best_solution>50778&& !timer.isTimeOut()) {
+        iter++;
+        tempflag = find_pair(sln, Pair,nodeNum);
+        if (tempflag == 0)
+            break;
+        change_pair(sln, Pair,nodeNum);//更新交换对    
+       /* for (int i = 0; i != nodeNum + 1; i++)
+            cout << Solution_path[i] << "\t";
+        cout << endl;*/
+       /* if (best_solution > local_solution) {
+            pc++;
+        }*/
+        if (best_solution >local_solution) {
+            best_solution = local_solution;
 
+        }
+        cout << best_solution << "\t";
+       /* for (int i = 0; i != nodeNum + 1; i++)
+            cout << Solution_path[i] << "\t";
+        cout << endl << endl;*/
+    }
+    for (int i = 0; i != nodeNum + 1; i++)
+        cout << Solution_path[i] << "\t";
+    cout << endl << "the init best solution:" << best_solution << endl;
+    clock_t end_time = clock();
+    check(sln,nodeNum);
+    /*if (ScInfo.Sc < best_solution)
+        best_solution = ScInfo.Sc;*/
+   // sln.maxLength = best_solution;
+    cout << "the iter: " << iter << endl;
+    //cout << "the most solution: " << best_solution << endl;
+   // cout << "the true best solution:" << object << endl;
+    cout << "the time is:" << (end_time - start_time)*1.0 / CLOCKS_PER_SEC << "s" << endl;
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
     return status;
+}
+/*
+1.初始解：随机的找到一个合法回路（也可以贪心构造）
+2.领域动作：交换两个节点，2-opt
+3.禁忌动作：禁忌两个节点之间的交换
+
+2-opt+tabu实现
+a->b->c->d->e->f
+交换不相交的两个节点;b,e
+新的边集序列：
+a->（e->d->c->b）->f
+代价计算：只是a->e对应a->b，b->f对应e->f的代价发生了变化之间的
+*/
+//路径中node1总是在node2的前面
+int Solver::find_pair(Solution &sln, pair &Pair,ID nodeNum) {//确定交换对<nodei，nodej>
+    vector <int> id;
+    pair tabu_pair;
+    tabu_pair.delt = MAX;
+    pair no_tabu_pair;
+    int delt;
+    no_tabu_pair.delt = MAX;
+    int no_tabu_samenumber = 1;
+    int tabu_samenumber = 1;
+    int m = 0;
+    for (int i = 1; i != nodeNum - 1; i++) {//起始节点0是不需要变的
+        for (int j = i + 1; j != nodeNum; j++) {
+            if (inpath[i][j] == 0) {
+                //find exchange nodes i,j
+                int locali = -1, localj = -1;
+                for (int local = 1; local != nodeNum; local++) {
+                    if (Solution_path[local] == i)
+                        locali = local;
+
+                    if (Solution_path[local] == j)
+                        localj = local;
+                }
+                if (locali < localj) {
+                    delt = (aux.adjMat[Solution_path[locali - 1]][j] + aux.adjMat[i][Solution_path[localj + 1]]) - (aux.adjMat[Solution_path[locali - 1]][i] + aux.adjMat[j][Solution_path[localj + 1]]);
+                    //计算交换两条边后边的代价变化了多少
+                } else {
+                    delt = (aux.adjMat[Solution_path[localj - 1]][i] + aux.adjMat[j][Solution_path[locali + 1]]) - (aux.adjMat[Solution_path[localj - 1]][j] + aux.adjMat[i][Solution_path[locali + 1]]);
+                }
+                if (TabuTenure[i][j] > iter) {//update tabu 
+                    if (delt < tabu_pair.delt) {
+                        //cout << "nodei,nodej:" << i << "," << j << "," << delt << endl;
+                        //cout << "locali,localj:" << locali << "," << localj << endl;
+                        if (locali < localj) {
+                            tabu_pair.node1 = i;
+                            tabu_pair.local1 = locali;
+                            tabu_pair.node2 = j;
+                            tabu_pair.local2 = localj;
+                        } else {
+                            tabu_pair.node1 = j;
+                            tabu_pair.local1 = localj;
+                            tabu_pair.node2 = i;
+                            tabu_pair.local2 = locali;
+                        }
+                        tabu_samenumber = 1;
+                        tabu_pair.delt = delt;
+                    } else if (delt == tabu_pair.delt) {
+                        tabu_samenumber++;
+                        if (rand() % tabu_samenumber == 0) {
+                            if (locali < localj) {
+                                tabu_pair.node1 = i;
+                                tabu_pair.local1 = locali;
+                                tabu_pair.node2 = j;
+                                tabu_pair.local2 = localj;
+                            } else {
+                                tabu_pair.node1 = j;
+                                tabu_pair.local1 = localj;
+                                tabu_pair.node2 = i;
+                                tabu_pair.local2 = locali;
+                            }
+                        }
+                    }
+                } else {//update no_tabu
+                    if (delt < no_tabu_pair.delt) {
+                       // cout << "nodei,nodej:" <<i << "," << j<<","<<delt << endl;
+                       // cout << "locali,localj:" << locali << "," << localj << endl;
+                        if (locali < localj) {
+                            no_tabu_pair.node1 = i;
+                            no_tabu_pair.local1 = locali;
+                            no_tabu_pair.node2 = j;
+                            no_tabu_pair.local2 = localj;
+                        } else {
+                            no_tabu_pair.node1 = j;
+                            no_tabu_pair.local1 = localj;
+                            no_tabu_pair.node2 = i;
+                            no_tabu_pair.local2 = locali;
+                        }
+                        no_tabu_samenumber = 1;
+                        no_tabu_pair.delt = delt;
+                    } else if (delt == no_tabu_pair.delt) {
+                        tabu_samenumber++;
+                        if (rand() % no_tabu_samenumber == 0) {
+                            if (locali < localj) {
+                                no_tabu_pair.node1 = i;
+                                no_tabu_pair.local1 = locali;
+                                no_tabu_pair.node2 = j;
+                                no_tabu_pair.local2 = localj;
+                            } else {
+                                no_tabu_pair.node1 = j;
+                                no_tabu_pair.local1 = localj;
+                                no_tabu_pair.node2 = i;
+                                no_tabu_pair.local2 = locali;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (tabu_pair.delt < no_tabu_pair.delt && tabu_pair.delt+local_solution < best_solution) {
+        Pair = tabu_pair;
+        cout << "** ";
+    } else{
+        Pair = no_tabu_pair;
+    } //else return 0;//找不到可以改善最优解的交换节点对
+
+    return 1;
+
+}
+
+
+void Solver::change_pair(Solution &sln, pair &Pair,ID nodeNum) {
+    //更新tabu表
+    TabuTenure[Pair.node2][Pair.node1] = TabuTenure[Pair.node1][Pair.node2] = 10 + iter + rand() % iter;
+    vector <int> tempSolution_path = Solution_path;
+    //cout << "node1:" << Pair.node1 << ",node2:" << Pair.node2 <<",delt:"<<Pair.delt<< endl;
+        //顺序标记更新
+    inpath[Solution_path[Pair.local1 - 1]][Pair.node1] = inpath[Pair.node1][Solution_path[Pair.local1 - 1]] = 0;
+    inpath[Pair.node2][Solution_path[Pair.local2 + 1]] = inpath[Solution_path[Pair.local2 + 1]][Pair.node2] = 0;
+    inpath[Solution_path[Pair.local1 - 1]][Pair.node2] = inpath[Pair.node2][Solution_path[Pair.local1 - 1]] = 1;
+    inpath[Pair.node1][Solution_path[Pair.local2 + 1]] = inpath[Solution_path[Pair.local2 + 1]][Pair.node1] = 1;
+    for (int i = Pair.local1, j = 0; i != Pair.local2 + 1; i++, j++) {
+        Solution_path[i] = tempSolution_path[Pair.local2 - j];
+    }
+    local_solution += Pair.delt;
+}
+
+void Solver::check(Solution &sln,ID nodeNum) {
+//   // cout << best_solution << endl;
+    int best_cost = 0;
+    for (int i = 1; i != nodeNum + 1; i++) {
+        best_cost += aux.adjMat[Solution_path[i - 1]][Solution_path[i]];
+    }
+    if (best_cost != best_solution) {
+        cout << "error" << endl; 
+        cout << best_cost << endl;
+    }
 }
 #pragma endregion Solver
 

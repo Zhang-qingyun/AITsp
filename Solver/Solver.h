@@ -20,12 +20,27 @@
 #include "Utility.h"
 #include "LogSwitch.h"
 #include "Problem.h"
-
+#define MAX 1000000
 
 namespace szx {
 
 class Solver {
     #pragma region Type
+    int best_solution;//目标函数值，即最大距离
+    int local_solution;//记录局部解
+    int flag;
+    std::vector <std::vector<int>>inpath;
+    std::vector <std::vector<int>> TabuTenure;
+    std::vector<int> Solution_path;
+   // static float object;
+    int iter;
+    struct pair {
+        int node1;
+        int local1;
+        int node2;
+        int local2;
+        int delt;
+    };
 public:
     // commmand line interface.
     struct Cli {
@@ -198,6 +213,10 @@ public:
 protected:
     void init();
     bool optimize(Solution &sln, ID workerId = 0); // optimize by a single worker.
+    bool init_solution(Solution &sln,ID nodeNum);//初始解
+    int find_pair(Solution &sln, pair &Pair, ID nodeNum);
+    void change_pair(Solution &sln, pair &Pair, ID nodeNum);//比较目标函数值Sc和新增节点后产生的距离Mf，取大者。
+    void check(Solution &sln, ID nodeNum);
     #pragma endregion Method
 
     #pragma region Field
