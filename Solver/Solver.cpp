@@ -275,7 +275,7 @@ void Solver::init() {
         Timer timer(30s);
         constexpr bool IsUndirectedGraph = true;
         IsUndirectedGraph
-            ? Floyd::findAllPairsPaths_symmetric(aux.adjMat)
+            ? Floyd::findAllPairsPaths_symmetric(aux.adjMat)//
             : Floyd::findAllPairsPaths_asymmetric(aux.adjMat);
         Log(LogSwitch::Preprocess) << "Floyd takes " << timer.elapsedSeconds() << " seconds." << endl;
     } else { // geometrical graph.
@@ -296,26 +296,23 @@ void Solver::init() {
 }
 
 
-
-
 bool Solver::init_solution(Solution &sln,ID nodeNum) {//贪心构造
     srand(rand() % MAX);
-    int mindictance = MAX;
+    int mindictance ;
     vector <int>flag(nodeNum, 0);
 
     Solution_path.push_back(0);
     flag[Solution_path[0]] = 1;//flag[i]== 1:node i in the Solution_path,visited
-    int tempnode1 = Solution_path[0];
+    int tempnode1;// = Solution_path[0];
     int tempnode2;
-    for (int j = 1; j != nodeNum; j++) {
+    for (int j = 1; j != nodeNum; j++) {//路径节点个数
         mindictance = MAX;
         tempnode1 = Solution_path[j - 1];
         for (int i = 1; i != nodeNum; i++) {
-            if (aux.adjMat[tempnode1][i] < mindictance && flag[i] == 0) {
+            if (aux.adjMat[tempnode1][i] < mindictance && flag[i] == 0 ) {
                 mindictance = aux.adjMat[tempnode1][i];
                 tempnode2 = i;
-            } else if (aux.adjMat[tempnode1][i] == mindictance && rand() % 2 == 0 && flag[i] == 0) {
-                mindictance = aux.adjMat[tempnode1][i];
+            } else if (aux.adjMat[tempnode1][i] == mindictance && rand() % 2 == 0 && flag[i] == 0 ) {
                 tempnode2 = i;
             }
         }
@@ -325,7 +322,7 @@ bool Solver::init_solution(Solution &sln,ID nodeNum) {//贪心构造
         local_solution += mindictance;
     }
     Solution_path.push_back(0);
-    local_solution += aux.adjMat[Solution_path[Solution_path.size() - 2]][0];
+    local_solution += aux.adjMat[Solution_path[Solution_path.size() - 2]][Solution_path[Solution_path.size() - 1]];
     inpath[Solution_path[Solution_path.size() - 2]][Solution_path[Solution_path.size() - 1]] = inpath[Solution_path[Solution_path.size() - 1]][Solution_path[Solution_path.size() - 2]] = 1;
     return 1;
 }
@@ -333,11 +330,13 @@ bool Solver::init_solution(Solution &sln,ID nodeNum) {//贪心构造
 bool Solver::optimize(Solution &sln, ID workerId) {
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " starts." << endl;
     ID nodeNum = input.graph().nodenum();
+    cout << nodeNum << endl;
     ID centerNum = input.centernum();
     int pc=0;
     inpath = vector<vector<int>>(nodeNum, vector<int>(nodeNum, 0));//标记路径中相连的两边，方便找到比相连的交换边
     bool status = true;
     TabuTenure = vector<vector<int>>(nodeNum, vector<int>(nodeNum, 0));
+    local_solution = 0;
     pair Pair = { -1 };
     bool tempflag = init_solution(sln,nodeNum);//初始解
     best_solution = local_solution;
@@ -346,9 +345,9 @@ bool Solver::optimize(Solution &sln, ID workerId) {
         return 0;
     }
     cout << "init_best_solution" << best_solution << endl;
-    /*for (int i = 0; i != nodeNum + 1; i++)
+    for (int i = 0; i != nodeNum + 1; i++)
         cout << Solution_path[i] << "\t";
-    cout << endl << endl;*/
+    cout << endl << endl;
     /*for (int i = 0; i != nodeNum; i++) {
         for (int j = 0; j != nodeNum; j++) {
             cout << aux.adjMat[i][j] << "\t";
@@ -356,8 +355,9 @@ bool Solver::optimize(Solution &sln, ID workerId) {
         cout << endl;
     }*/
     clock_t start_time = clock();
+    
     iter = 1;
-    while (iter < MAX&& best_solution>50778&& !timer.isTimeOut()) {
+    while (iter < MAX&& mid_time-start_time<500) {// !timer.isTimeOut()
         iter++;
         tempflag = find_pair(sln, Pair,nodeNum);
         if (tempflag == 0)
@@ -377,6 +377,7 @@ bool Solver::optimize(Solution &sln, ID workerId) {
        /* for (int i = 0; i != nodeNum + 1; i++)
             cout << Solution_path[i] << "\t";
         cout << endl << endl;*/
+        clock_t mid_time = clock();
     }
     for (int i = 0; i != nodeNum + 1; i++)
         cout << Solution_path[i] << "\t";
