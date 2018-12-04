@@ -4,18 +4,18 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_P_CENTER_LOG_SWITCH_H
-#define SMART_SZX_P_CENTER_LOG_SWITCH_H
+#ifndef SMART_ZQY_P_CENTER_LOG_SWITCH_H
+#define SMART_ZQY_P_CENTER_LOG_SWITCH_H
 
 
 #include "Utility.h"
 
 
-namespace szx {
+namespace zqy {
 
 struct LogSwitch {
-    // TODO[szx][0]: turn off all logs before the release.
-    enum Szx {
+    // TODO[zqy][0]: turn off all logs before the release.
+    enum Zqy {
         Main = Log::Level::Info,
         Cli = Log::Level::Off,
         Framework = Log::Level::Debug,
@@ -33,4 +33,4 @@ struct LogSwitch {
 }
 
 
-#endif // SMART_SZX_P_CENTER_LOG_SWITCH_H
+#endif // SMART_ZQY_P_CENTER_LOG_SWITCH_H

@@ -1,9 +1,4 @@
-////////////////////////////////
-/// usage : 1.  prepare the input, call the solver through command line interface
-///             or class library interface, and then collect output for analysis.
-///
-/// note :  1.
-////////////////////////////////
+
 
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
@@ -17,7 +12,7 @@
 #include "../Solver/Utility.h"
 
 
-namespace szx {
+namespace zqy {
 
 using Cmd = Solver::Cli;
 using Env = Solver::Environment;
@@ -25,7 +20,7 @@ using Env = Solver::Environment;
 class Simulator {
     #pragma region Type
 public:
-    // TODO[szx][4]: make it be able to run with serveral env and cfg.
+    // TODO[zqy][4]: make it be able to run with serveral env and cfg.
     struct Task {
         String instSet;
         String instId;
@@ -71,17 +66,6 @@ public:
     void debug();
     // utility for testing all instances.
     void benchmark(int repeat = 1);
-    // utility for testing all instances using a thread pool.
-    void parallelBenchmark(int repeat);
-
-
-    void generateInstance(const InstanceTrait &trait);
-    void generateInstance() {
-        InstanceTrait trait;
-        generateInstance(trait);
-    }
-    void convertPmedInstance(const String &pmedPath, int index);
-    void convertTspInstance(const String &tspName, int centerNum);
     #pragma endregion Method
 
     #pragma region Field

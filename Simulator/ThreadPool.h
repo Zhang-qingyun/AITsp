@@ -1,11 +1,7 @@
-////////////////////////////////
-/// usage : 1.	a simple hread pool without return value retrieval and argument passing.
-/// 
-/// note  : 1.	
-////////////////////////////////
 
-#ifndef SZX_CPPUTILIBS_THREAD_POOL_H
-#define SZX_CPPUTILIBS_THREAD_POOL_H
+
+#ifndef ZQY_CPPUTILIBS_THREAD_POOL_H
+#define ZQY_CPPUTILIBS_THREAD_POOL_H
 
 
 #include <atomic>
@@ -18,7 +14,7 @@
 #include <utility>
 
 
-namespace szx {
+namespace zqy {
 
 namespace impl {
 
@@ -53,7 +49,7 @@ public:
     // terminate all workers after all pushed jobs are done.
     virtual void pend() {
         setState(State::Pend);
-        waitAll(); // OPTIMIZE[szx][0]: detach and move on instead of waiting?
+        waitAll(); // OPTIMIZE[ZQY][0]: detach and move on instead of waiting?
     }
     // terminate all workers after all taken jobs are done.
     virtual void stop() {
@@ -182,7 +178,7 @@ public:
 
         virtual void push(Job &&newJob) override {
             Lock workerLock(workerMutex);
-            workerCv.wait(workerLock, [this]() { return isSlotEmpty(); }); // OPTIMIZE[szx][0]: assume spurious wake up will never happen?
+            workerCv.wait(workerLock, [this]() { return isSlotEmpty(); }); // OPTIMIZE[zqy][0]: assume spurious wake up will never happen?
             nextJob = newJob; // make the new job available for taking.
             workerLock.unlock();
 
@@ -245,10 +241,10 @@ public:
     // avoid copying function objects. the const reference can be handled automatically.
     template<typename Functor>
     void push(Functor &newJob) { push(std::ref(newJob)); } // or use `push([&newJob]() { newJob(); });`.
-    // EXTEND[szx][9]: provide std::future?
+    // EXTEND[zqy][9]: provide std::future?
 };
 
 }
 
 
-#endif // SZX_CPPUTILIBS_THREAD_POOL_H
+#endif // ZQY_CPPUTILIBS_THREAD_POOL_H

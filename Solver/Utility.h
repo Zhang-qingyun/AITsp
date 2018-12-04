@@ -4,8 +4,8 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_P_CENTER_UTILITY_H
-#define SMART_SZX_P_CENTER_UTILITY_H
+#ifndef SMART_ZQY_P_CENTER_UTILITY_H
+#define SMART_ZQY_P_CENTER_UTILITY_H
 
 
 #include "Config.h"
@@ -35,7 +35,7 @@
 #define UTILITY_DATE_TIME_CPP_STYLE  0
 
 
-namespace szx {
+namespace zqy {
 
 // if there is "#define x  y", VERBATIM_STRINGIFY(x) will get "x".
 #define VERBATIM_STRINGIFY(x)  #x
@@ -135,14 +135,14 @@ public:
 protected:
     // must not be called except init.
     void allocate(IndexType length) {
-        // TODO[szx][2]: length > (1 << 32)?
+        // TODO[zqy][2]: length > (1 << 32)?
         arr = new T[static_cast<size_t>(length)];
         len = length;
     }
 
     void copyData(T *data) {
-        // TODO[szx][1]: what if data is shorter than arr?
-        // OPTIMIZE[szx][8]: use memcpy() if all callers are POD type.
+        // TODO[zqy][1]: what if data is shorter than arr?
+        // OPTIMIZE[zqy][8]: use memcpy() if all callers are POD type.
         std::copy(data, data + len, arr);
     }
 
@@ -263,7 +263,7 @@ protected:
     }
 
     void copyData(T *data) {
-        // TODO[szx][1]: what if data is shorter than arr?
+        // TODO[ZQY][1]: what if data is shorter than arr?
         // OPTIMIZE[szx][8]: use memcpy() if all callers are POD type.
         std::copy(data, data + len, arr);
     }

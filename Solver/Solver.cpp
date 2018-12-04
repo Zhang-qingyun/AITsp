@@ -14,11 +14,11 @@
 using namespace std;
 
 
-namespace szx {
+namespace zqy {
 
 #pragma region Solver::Cli
 int Solver::Cli::run(int argc, char * argv[]) {
-    Log(LogSwitch::Szx::Cli) << "parse command line arguments." << endl;
+    Log(LogSwitch::Zqy::Cli) << "parse command line arguments." << endl;
     Set<String> switchSet;
     Map<String, char*> optionMap({ // use string as key to compare string contents instead of pointers.
         { InstancePathOption(), nullptr },
@@ -42,7 +42,7 @@ int Solver::Cli::run(int argc, char * argv[]) {
         }
     }
 
-    Log(LogSwitch::Szx::Cli) << "execute commands." << endl;
+    Log(LogSwitch::Zqy::Cli) << "execute commands." << endl;
     if (switchSet.find(HelpSwitch()) != switchSet.end()) {
         cout << HelpInfo() << endl;
     }
@@ -58,23 +58,18 @@ int Solver::Cli::run(int argc, char * argv[]) {
     Solver::Configuration cfg;
     cfg.load(env.cfgPath);
 
-    Log(LogSwitch::Szx::Input) << "load instance " << env.instPath << " (seed=" << env.randSeed << ")." << endl;
+    Log(LogSwitch::Zqy::Input) << "load instance " << env.instPath << " (seed=" << env.randSeed << ")." << endl;
     Problem::Input input;
     if (!input.load(env.instPath)) { return -1; }
 
     Solver solver(input, env, cfg);
     solver.solve();
 
-    pb::Submission submission;
-    submission.set_thread(to_string(env.jobNum));
-    submission.set_instance(env.friendlyInstName());
-    submission.set_duration(to_string(solver.timer.elapsedSeconds()) + "s");
-
-    solver.output.save(env.slnPath, submission);
-    #if SZX_DEBUG
-    solver.output.save(env.solutionPathWithTime(), submission);
+    #if ZQY_DEBUG
+  
     solver.record();
-    #endif // SZX_DEBUG
+    
+    #endif // ZQY_DEBUG
 
     return 0;
 }
@@ -123,12 +118,12 @@ void Solver::Environment::load(const String &filePath) {
 }
 
 void Solver::Environment::loadWithoutCalibrate(const String &filePath) {
-    // EXTEND[szx][8]: load environment from file.
-    // EXTEND[szx][8]: check file existence first.
+    // EXTEND[zqy][8]: load environment from file.
+    // EXTEND[zqy][8]: check file existence first.
 }
 
 void Solver::Environment::save(const String &filePath) const {
-    // EXTEND[szx][8]: save environment to file.
+    // EXTEND[zqy][8]: save environment to file.
 }
 void Solver::Environment::calibrate() {
     // adjust thread number.
@@ -142,12 +137,12 @@ void Solver::Environment::calibrate() {
 
 #pragma region Solver::Configuration
 void Solver::Configuration::load(const String &filePath) {
-    // EXTEND[szx][5]: load configuration from file.
-    // EXTEND[szx][8]: check file existence first.
+    // EXTEND[zqy][5]: load configuration from file.
+    // EXTEND[zqy][8]: check file existence first.
 }
 
 void Solver::Configuration::save(const String &filePath) const {
-    // EXTEND[szx][5]: save configuration to file.
+    // EXTEND[zqy][5]: save configuration to file.
 }
 #pragma endregion Solver::Configuration
 
@@ -160,22 +155,22 @@ bool Solver::solve() {
     List<Solution> solutions(workerNum, Solution(this));
     List<bool> success(workerNum);
 
-    Log(LogSwitch::Szx::Framework) << "launch " << workerNum << " workers." << endl;
+    Log(LogSwitch::Zqy::Framework) << "launch " << workerNum << " workers." << endl;
     List<thread> threadList;
     threadList.reserve(workerNum);
     for (int i = 0; i < workerNum; ++i) {
-        // TODO[szx][2]: as *this is captured by ref, the solver should support concurrency itself, i.e., data members should be read-only or independent for each worker.
-        // OPTIMIZE[szx][3]: add a list to specify a series of algorithm to be used by each threads in sequence.
+        // TODO[zqy][2]: as *this is captured by ref, the solver should support concurrency itself, i.e., data members should be read-only or independent for each worker.
+        // OPTIMIZE[zqy][3]: add a list to specify a series of algorithm to be used by each threads in sequence.
         threadList.emplace_back([&, i]() { success[i] = optimize(solutions[i], i); });
     }
     for (int i = 0; i < workerNum; ++i) { threadList.at(i).join(); }
 
-    Log(LogSwitch::Szx::Framework) << "collect best result among all workers." << endl;
+    Log(LogSwitch::Zqy::Framework) << "collect best result among all workers." << endl;
     int bestIndex = -1;
     Length bestValue = Problem::MaxDistance;
     for (int i = 0; i < workerNum; ++i) {
         if (!success[i]) { continue; }
-        Log(LogSwitch::Szx::Framework) << "worker " << i << " got " << solutions[i].coverRadius << endl;
+        Log(LogSwitch::Zqy::Framework) << "worker " << i << " got " << solutions[i].coverRadius << endl;
         if (solutions[i].coverRadius >= bestValue) { continue; }
         bestIndex = i;
         bestValue = solutions[i].coverRadius;
@@ -188,7 +183,7 @@ bool Solver::solve() {
 }
 
 void Solver::record() const {
-    #if SZX_DEBUG
+    #if ZQY_DEBUG
     int generation = 0;
 
     ostringstream log;
@@ -197,13 +192,13 @@ void Solver::record() const {
 
     Length obj = output.coverRadius;
     Length checkerObj = -1;
-    bool feasible = check(checkerObj);
+   // bool feasible = check(checkerObj);
 
     // record basic information.
     log << env.friendlyLocalTime() << ","
         << env.rid << ","
         << env.instPath << ","
-        << feasible << "," << (obj - checkerObj) << ",";
+        << (obj - checkerObj) << ",";
     if (Problem::isTopologicalGraph(input)) {
         log << obj << ",";
     } else {
@@ -219,7 +214,7 @@ void Solver::record() const {
         << generation << "," << iteration << ",";
 
     // record solution vector.
-    // EXTEND[szx][2]: save solution in log.
+    // EXTEND[zqy][2]: save solution in log.
     log << endl;
 
     // append all text atomically.
@@ -229,33 +224,47 @@ void Solver::record() const {
     ofstream logFile(env.logPath, ios::app);
     logFile.seekp(0, ios::end);
     if (logFile.tellp() <= 0) {
-        logFile << "Time,ID,Instance,Feasible,ObjMatch,Distance,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
+        logFile << "Time,ID,Instance,ObjMatch,Distance,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
     }
     logFile << log.str();
     logFile.close();
-    #endif // SZX_DEBUG
+    #endif // zqy_DEBUG
 }
+struct visualNodeType {
+    string color;   //ÏÔÊ¾µÄ¶¥µãÑÕÉ«
+    string shape;   //dot,rect,square£¨Ô²µã£¬³¤·½ÐÎ£¬Õý·½ÐÎ£©
+    string label;   //ÏÔÊ¾µÄµãµÄ±êÇ©
+};
 
-bool Solver::check(Length &checkerObj) const {
-    #if SZX_DEBUG
-    enum CheckerFlag {
-        IoError = 0x0,
-        FormatError = 0x1,
-        TooManyCentersError = 0x2
-    };
+using std::ios;
 
-    checkerObj = System::exec("Checker.exe " + env.instPath + " " + env.solutionPathWithTime());
-    if (checkerObj > 0) { return true; }
-    checkerObj = ~checkerObj;
-    if (checkerObj == CheckerFlag::IoError) { Log(LogSwitch::Checker) << "IoError." << endl; }
-    if (checkerObj & CheckerFlag::FormatError) { Log(LogSwitch::Checker) << "FormatError." << endl; }
-    if (checkerObj & CheckerFlag::TooManyCentersError) { Log(LogSwitch::Checker) << "TooManyCentersError." << endl; }
-    return false;
-    #else
-    checkerObj = 0;
+bool Solver::visualization(Solution &sln, ID nodeNum) const {//ÍØÆËÍ¼¿ÉÊÓ»¯Êä³ö
+    visualNodeType source = { black,"dot","s" }, target = { black,"dot","t" }, normal = { brown,"dot","" };
+    string edgetype(directed), normaledgecolor(gray), pathedgecolor(red);
+    std::fstream fout;
+    int num = 0;
+    fout.open("0.txt", ios::app);
+    if (!fout.is_open())return false;
+
+    //×ó²àÏÔÊ¾µÄÐÅÏ¢
+    fout << "; " << nodeNum << " " << (int)(nodeNum*(nodeNum-1)/2)<< " " << nodeNum<< " ";
+    for (int i = 0; i < (int)(nodeNum*(nodeNum - 1) / 2); i++)
+        fout <<sln.paths(0) << " " << edgetype << " " << sln.paths(0) << " {color:" << normaledgecolor << "}\n";
+    fout << std::endl;
+    for (int i = 0; i < nodeNum - 1; i++) {
+        fout << (int)sln.paths(i) << " " << edgetype << " " << (int)sln.paths(i+1);
+        fout << " {color:" << pathedgecolor << " ,weight:4" << "}\n";
+    }
+    fout << std::endl;
+    for (int i =1; i < nodeNum; i++)
+        fout << i<< " {color:" << normal.color << ", shape:" << normal.shape << ", label:}\n";
+    fout << std::endl;
+    fout << 0 << " {color:" << source.color << ", shape:" << source.shape << ", label:" << source.label << "}\n";
+    fout << 0 << " {color:" << target.color << ", shape:" << target.shape << ", label:" << target.label << "}\n";
+    fout.close();
     return true;
-    #endif // SZX_DEBUG
 }
+
 
 void Solver::init() {
     ID nodeNum = input.graph().nodenum();
@@ -328,9 +337,9 @@ bool Solver::init_solution(Solution &sln,ID nodeNum) {//Ì°ÐÄ¹¹Ôì
 }
 
 bool Solver::optimize(Solution &sln, ID workerId) {
-    Log(LogSwitch::Szx::Framework) << "worker " << workerId << " starts." << endl;
+    Log(LogSwitch::Zqy::Framework) << "worker " << workerId << " starts." << endl;
     ID nodeNum = input.graph().nodenum();
-    cout << nodeNum << endl;
+   // cout << nodeNum << endl;
     ID centerNum = input.centernum();
     int pc=0;
     inpath = vector<vector<int>>(nodeNum, vector<int>(nodeNum, 0));//±ê¼ÇÂ·¾¶ÖÐÏàÁ¬µÄÁ½±ß£¬·½±ãÕÒµ½±ÈÏàÁ¬µÄ½»»»±ß
@@ -339,25 +348,21 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     local_solution = 0;
     pair Pair = { -1 };
     bool tempflag = init_solution(sln,nodeNum);//³õÊ¼½â
+    vector<int> tempSolution_path(Solution_path);
     best_solution = local_solution;
     if (tempflag == 0) {
         cout << "error!!";
         return 0;
     }
-    cout << "init_best_solution" << best_solution << endl;
-    for (int i = 0; i != nodeNum + 1; i++)
-        cout << Solution_path[i] << "\t";
+    cout << "the init solution:"<< setiosflags(ios::fixed) << setprecision(2) << (float)best_solution*0.01 << endl;
+    /*for (int i = 0; i != nodeNum + 1; i++)
+        cout << Solution_path[i] << "\t";*/
     cout << endl << endl;
-    /*for (int i = 0; i != nodeNum; i++) {
-        for (int j = 0; j != nodeNum; j++) {
-            cout << aux.adjMat[i][j] << "\t";
-        }
-        cout << endl;
-    }*/
     clock_t start_time = clock();
-    
+    clock_t mid_time = clock();
     iter = 1;
-    while (iter < MAX&& mid_time-start_time<500) {// !timer.isTimeOut()
+    cout << "iterative process:";
+    while (iter < MAX&& (mid_time-start_time)*1.0 / CLOCKS_PER_SEC <300) {// !timer.isTimeOut()
         iter++;
         tempflag = find_pair(sln, Pair,nodeNum);
         if (tempflag == 0)
@@ -369,29 +374,39 @@ bool Solver::optimize(Solution &sln, ID workerId) {
        /* if (best_solution > local_solution) {
             pc++;
         }*/
+        
         if (best_solution >local_solution) {
             best_solution = local_solution;
-
+            tempSolution_path = Solution_path;
+            cout << setiosflags(ios::fixed) << setprecision(2) << (float)best_solution*0.01<<"\t" ;
         }
-        cout << best_solution << "\t";
+        if (best_solution <=3081)//<=67710 )//42866)
+            break;
        /* for (int i = 0; i != nodeNum + 1; i++)
             cout << Solution_path[i] << "\t";
         cout << endl << endl;*/
-        clock_t mid_time = clock();
+       mid_time = clock();
+       //check(sln,nodeNum);
     }
-    for (int i = 0; i != nodeNum + 1; i++)
+    if (Solution_path != tempSolution_path) {
+        Solution_path = tempSolution_path;
+    }
+    cout << endl << "the path:";
+    for (int i = 0; i != nodeNum + 1; i++) {
         cout << Solution_path[i] << "\t";
-    cout << endl << "the init best solution:" << best_solution << endl;
+        sln.add_paths(Solution_path[i]);
+       // cout << sln.centers(i) << "\t";
+    }
+        
+    cout << endl << "the best solution:" << setiosflags(ios::fixed) <<setprecision(2) << (float)best_solution*0.01 << endl;
     clock_t end_time = clock();
     check(sln,nodeNum);
-    /*if (ScInfo.Sc < best_solution)
-        best_solution = ScInfo.Sc;*/
-   // sln.maxLength = best_solution;
     cout << "the iter: " << iter << endl;
     //cout << "the most solution: " << best_solution << endl;
    // cout << "the true best solution:" << object << endl;
     cout << "the time is:" << (end_time - start_time)*1.0 / CLOCKS_PER_SEC << "s" << endl;
-    Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
+  // visualization(sln,  nodeNum);
+    Log(LogSwitch::Zqy::Framework) << "worker " << workerId << " ends." << endl;
     return status;
 }
 /*
@@ -404,7 +419,7 @@ a->b->c->d->e->f
 ½»»»²»Ïà½»µÄÁ½¸ö½Úµã;b,e
 ÐÂµÄ±ß¼¯ÐòÁÐ£º
 a->£¨e->d->c->b£©->f
-´ú¼Û¼ÆËã£ºÖ»ÊÇa->e¶ÔÓ¦a->b£¬b->f¶ÔÓ¦e->fµÄ´ú¼Û·¢ÉúÁË±ä»¯Ö®¼äµÄ
+´ú¼Û¼ÆËã£ºÖ»ÊÇa->e¶ÔÓ¦a->b£¬b->f¶ÔÓ¦e->fµÄ´ú¼Û·¢ÉúÁË±ä»¯
 */
 //Â·¾¶ÖÐnode1×ÜÊÇÔÚnode2µÄÇ°Ãæ
 int Solver::find_pair(Solution &sln, pair &Pair,ID nodeNum) {//È·¶¨½»»»¶Ô<nodei£¬nodej>
@@ -417,6 +432,8 @@ int Solver::find_pair(Solution &sln, pair &Pair,ID nodeNum) {//È·¶¨½»»»¶Ô<nodei£
     int no_tabu_samenumber = 1;
     int tabu_samenumber = 1;
     int m = 0;
+   // cout << endl << "the delt:";
+    /*ÎÊÌâ£ºËÑË÷µ½Ò»¶¨µÄÊ±¼äºóËÑË÷½Úµã½«»á³ö´í*/
     for (int i = 1; i != nodeNum - 1; i++) {//ÆðÊ¼½Úµã0ÊÇ²»ÐèÒª±äµÄ
         for (int j = i + 1; j != nodeNum; j++) {
             if (inpath[i][j] == 0) {
@@ -435,9 +452,10 @@ int Solver::find_pair(Solution &sln, pair &Pair,ID nodeNum) {//È·¶¨½»»»¶Ô<nodei£
                 } else {
                     delt = (aux.adjMat[Solution_path[localj - 1]][i] + aux.adjMat[j][Solution_path[locali + 1]]) - (aux.adjMat[Solution_path[localj - 1]][j] + aux.adjMat[i][Solution_path[locali + 1]]);
                 }
+                //cerr << delt << "\t";
                 if (TabuTenure[i][j] > iter) {//update tabu 
                     if (delt < tabu_pair.delt) {
-                        //cout << "nodei,nodej:" << i << "," << j << "," << delt << endl;
+                       // cout << "nodei,nodej:" << i << "," << j << "," << delt << endl;
                         //cout << "locali,localj:" << locali << "," << localj << endl;
                         if (locali < localj) {
                             tabu_pair.node1 = i;
@@ -505,22 +523,29 @@ int Solver::find_pair(Solution &sln, pair &Pair,ID nodeNum) {//È·¶¨½»»»¶Ô<nodei£
             }
         }
     }
+   // cout << endl;
+    
     if (tabu_pair.delt < no_tabu_pair.delt && tabu_pair.delt+local_solution < best_solution) {
         Pair = tabu_pair;
-        cout << "** ";
+        //cout << "nodei,nodej:" << tabu_pair.node1 << "," << tabu_pair.node2 << "," << tabu_pair.delt << endl;
+       // cout << "** ";
     } else{
+        //cout << "nodei,nodej:" << no_tabu_pair.node1 << "," << no_tabu_pair.node2 << "," << no_tabu_pair.delt << endl;
         Pair = no_tabu_pair;
+        if (no_tabu_pair.node2 == 0) {
+            for (int i = 0; i != nodeNum + 1; i++)
+                cout << Solution_path[i] << "\t";
+        }
     } //else return 0;//ÕÒ²»µ½¿ÉÒÔ¸ÄÉÆ×îÓÅ½âµÄ½»»»½Úµã¶Ô
-
+    //cout << "the best_delt:" << Pair.delt << endl;
     return 1;
 
 }
 
-
 void Solver::change_pair(Solution &sln, pair &Pair,ID nodeNum) {
     //¸üÐÂtabu±í
-    TabuTenure[Pair.node2][Pair.node1] = TabuTenure[Pair.node1][Pair.node2] = 10 + iter + rand() % iter;
-    vector <int> tempSolution_path = Solution_path;
+    TabuTenure[Pair.node2][Pair.node1] = TabuTenure[Pair.node1][Pair.node2] = 10 + iter+ rand() %10;
+    vector <int> tempSolution_path(Solution_path);
     //cout << "node1:" << Pair.node1 << ",node2:" << Pair.node2 <<",delt:"<<Pair.delt<< endl;
         //Ë³Ðò±ê¼Ç¸üÐÂ
     inpath[Solution_path[Pair.local1 - 1]][Pair.node1] = inpath[Pair.node1][Solution_path[Pair.local1 - 1]] = 0;
@@ -537,13 +562,15 @@ void Solver::check(Solution &sln,ID nodeNum) {
 //   // cout << best_solution << endl;
     int best_cost = 0;
     for (int i = 1; i != nodeNum + 1; i++) {
+        //cout << Solution_path[i - 1] << "\t";
         best_cost += aux.adjMat[Solution_path[i - 1]][Solution_path[i]];
-    }
+    }//cout << endl;
     if (best_cost != best_solution) {
-        cout << "error" << endl; 
-        cout << best_cost << endl;
-    }
+        cout << "error:" ; 
+    } cout <<"the true solution:"<< setiosflags(ios::fixed)<< setprecision(2) << (float)best_cost*0.01 << endl;
+
 }
+
 #pragma endregion Solver
 
 }

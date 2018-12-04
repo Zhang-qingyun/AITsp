@@ -4,8 +4,8 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_P_CENTER_SOLVER_H
-#define SMART_SZX_P_CENTER_SOLVER_H
+#ifndef SMART_ZQY_P_CENTER_SOLVER_H
+#define SMART_ZQY_P_CENTER_SOLVER_H
 
 
 #include "Config.h"
@@ -16,13 +16,35 @@
 #include <sstream>
 #include <thread>
 
+#include <io.h>
+#include <iostream>
+#include <ctime>
+#include <fstream>
+#include <cstring>
+#include <string>
+
 #include "Common.h"
 #include "Utility.h"
 #include "LogSwitch.h"
 #include "Problem.h"
-#define MAX 1000000
 
-namespace szx {
+#define MAX 1000000
+#define yellow "#FFFF00"
+#define black "#000000" 
+#define blue "#0000ff"
+#define brown "#a52a2a" 
+#define darkgray "#a9a9a9" 
+#define green "#008000" 
+#define red "#ff0000" 
+#define yellowgreen "#9acd32"
+#define skyblue "#87ceeb"
+#define pink "#ffc0cb"
+#define lightgray "#d3d3d3"
+#define gray "#808080"
+#define directed "->"
+#define undirected "--"
+
+namespace zqy {
 
 class Solver {
     #pragma region Type
@@ -61,7 +83,7 @@ public:
         static String AuthorNameSwitch() { return "-name"; }
         static String HelpSwitch() { return "-h"; }
 
-        static String AuthorName() { return "szx"; }
+        static String AuthorName() { return "zqy"; }
         static String HelpInfo() {
             return "Pattern (args can be in any order):\n"
                 "  exe (-p path) (-o path) [-s int] [-t seconds] [-name]\n"
@@ -118,7 +140,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::Greedy; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::Greedy; // OPTIMIZE[ZQY][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -207,9 +229,9 @@ public:
     #pragma region Method
 public:
     bool solve(); // return true if exit normally. solve by multiple workers together.
-    bool check(Length &obj) const;
+    //bool check(Length &obj) const;
     void record() const; // save running log.
-
+    
 protected:
     void init();
     bool optimize(Solution &sln, ID workerId = 0); // optimize by a single worker.
@@ -217,6 +239,7 @@ protected:
     int find_pair(Solution &sln, pair &Pair, ID nodeNum);
     void change_pair(Solution &sln, pair &Pair, ID nodeNum);//比较目标函数值Sc和新增节点后产生的距离Mf，取大者。
     void check(Solution &sln, ID nodeNum);
+    bool visualization(Solution &sln, ID nodeNum)const;
     #pragma endregion Method
 
     #pragma region Field
@@ -243,4 +266,4 @@ public:
 }
 
 
-#endif // SMART_SZX_P_CENTER_SOLVER_H
+#endif // SMART_ZQY_P_CENTER_SOLVER_H

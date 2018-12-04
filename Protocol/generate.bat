@@ -1,2 +1,2 @@
-..\Lib\protobuf\bin\protoc.exe --cpp_out=..\Solver -I=..\Protocol PCenter.proto
+..\Lib\protobuf\bin\protoc.exe --cpp_out=..\Solver -I=..\Protocol TSP.proto
 pause
